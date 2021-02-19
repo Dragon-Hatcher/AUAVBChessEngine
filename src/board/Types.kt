@@ -29,6 +29,8 @@ class Files {
         val FILE_F = 5
         val FILE_G = 6
         val FILE_H = 7
+
+        val FILE_CHARS = listOf('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h')
     }
 }
 

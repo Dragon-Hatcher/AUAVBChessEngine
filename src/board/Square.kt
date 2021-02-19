@@ -12,8 +12,15 @@ fun Square.toBitboardSafe(): BitBoard = if(this !in Squares.A1..Squares.H8) BitB
 fun Square.add(direction: Direction, magnitude: Int) = this + direction * magnitude
 
 fun Square.rank(): Rank = this / 8
-
 fun Square.file(): File = this % 8
+
+fun Square.algebraic() = listOf('a','b','c','d','e','f','g','h')[this.file()] + (this.rank() + 1).toString()
+
+fun Collection<Square>.toBitboard(): BitBoard {
+    var b = BitBoards.EMPTY
+    this.forEach { b = b.set(it) }
+    return b
+}
 
 class Squares {
     companion object {

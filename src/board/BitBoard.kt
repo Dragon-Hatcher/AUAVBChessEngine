@@ -20,13 +20,6 @@ fun BitBoard.getFirstSetSquare(): Square {
 }
 
 fun BitBoard.toMoveList(moves: MutableList<Move>, from: Square) {
-//    var b = this
-//    return (0 until this.bitCount()).map {
-//        val s = b.getFirstSetSquare()
-//        b = b.unset(s)
-//        Move(from, s)
-//    }
-//
     var b = this
     while(b != BitBoards.EMPTY) {
         val s = b.getFirstSetSquare()
@@ -34,6 +27,40 @@ fun BitBoard.toMoveList(moves: MutableList<Move>, from: Square) {
         val n = createMove(from, s)
         moves.add(n)
     }
+}
+
+fun BitBoard.toMoveListFromOffset(moves: MutableList<Move>, offset: Int) {
+    var b = this
+    while(b != BitBoards.EMPTY) {
+        val s = b.getFirstSetSquare()
+        b = b.unset(s)
+        val n = createMove(s - offset, s)
+        moves.add(n)
+    }
+}
+
+fun BitBoard.toMoveListFromOffsetAndPromote(moves: MutableList<Move>, offset: Int) {
+    var b = this
+    while(b != BitBoards.EMPTY) {
+        val s = b.getFirstSetSquare()
+        b = b.unset(s)
+        moves.add(createMove(s - offset, s, 0))
+        moves.add(createMove(s - offset, s, 1))
+        moves.add(createMove(s - offset, s, 2))
+        moves.add(createMove(s - offset, s, 3))
+    }
+}
+
+
+fun BitBoard.toSquareList(moves: MutableList<Move> = mutableListOf()): List<Square> {
+    var b = this
+    while(b != BitBoards.EMPTY) {
+        val s = b.getFirstSetSquare()
+        b = b.unset(s)
+        val n = s
+        moves.add(n)
+    }
+    return moves
 }
 
 fun BitBoard.containsSquare(square: Square) = this and square.toBitboard() != BitBoards.EMPTY
@@ -45,7 +72,7 @@ fun BitBoard.asciiRepresentation(): String {
     var ret = ""
 
     for(rank in (Ranks.RANK_1..Ranks.RANK_8).reversed()) {
-        ret += "$rank | "
+        ret += "${rank + 1} | "
         for(file in Files.FILE_A..Files.FILE_H) {
             val square = Squares.fromRankAndFile(rank, file)
             ret += if(this.containsSquare(square)) "# " else ". "
