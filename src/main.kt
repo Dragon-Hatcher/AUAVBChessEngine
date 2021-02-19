@@ -22,7 +22,7 @@ fun main() {
 //    val position = Position.fromFen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ")
     val position = Position.fromFen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
 
-    println(position.castleKW)
+    println(perft(position, 4))
 
 //    println(position.asciiRepresentation())
 //    println(position.wPawn.asciiRepresentation())
@@ -34,9 +34,9 @@ fun main() {
 //    println(knightMoveMasks.size)
 //    val time = System.currentTimeMillis()
 //    for(i in 1..1000000) {
-    val moves = position.pseudoLegalMoves()
-    moves.forEach { println(it.notation()) }
-    println(moves.size)
+//    val moves = position.pseudoLegalMoves()
+//    moves.forEach { println(it.notation()) }
+//    println(moves.size)
 //    }
 //    println(System.currentTimeMillis() - time)
 }

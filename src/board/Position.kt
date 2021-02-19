@@ -349,6 +349,9 @@ class Position {
         return ""
     }
 
+    fun inCheckmate(): Boolean = TODO()
+    fun inStalemate(): Boolean = TODO()
+
     companion object {
         /**
          * Generates a [Position] object from the inputted [Fen]
