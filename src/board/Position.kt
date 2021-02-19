@@ -349,8 +349,9 @@ class Position {
         return ""
     }
 
-    fun inCheckmate(): Boolean = TODO()
-    fun inStalemate(): Boolean = TODO()
+    fun inCheckOrStalemate(): Boolean = legalMoves().isEmpty()
+    fun inCheckmate(): Boolean = inCheck() && legalMoves().isEmpty() //TODO
+    fun inStalemate(): Boolean = !inCheck() && legalMoves().isEmpty() //TODO
 
     companion object {
         /**

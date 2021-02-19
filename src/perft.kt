@@ -2,8 +2,7 @@ import board.Position
 
 fun perft(position: Position, depth: Int): Int =
     when {
-        position.inCheckmate() -> 0
-        position.inStalemate() -> 0
+        position.inCheckOrStalemate() -> 0
         depth == 1 -> position.legalMoves().size
         else -> {
             val moves = position.legalMoves()
