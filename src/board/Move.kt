@@ -10,7 +10,13 @@ import kotlin.math.pow
 typealias Move = Int
 
 fun createMove(from: Square, to: Square): Move = from or (to shl 6)
+fun createMoveEp(from: Square, to: Square): Move = from or (to shl 6) or (3 shl 14)
 fun createMove(from: Square, to: Square, piece: Int): Move = from or (to shl 6) or (piece shl 12) or (1 shl 14)
+
+fun createMoveWCK(): Move = createMove(Squares.E1, Squares.G1) or (2 shl 14)
+fun createMoveWCQ(): Move = createMove(Squares.E1, Squares.C1) or (2 shl 14)
+fun createMoveBCK(): Move = createMove(Squares.E8, Squares.G8) or (2 shl 14)
+fun createMoveBCQ(): Move = createMove(Squares.E8, Squares.C8) or (2 shl 14)
 
 fun Move.from(): Square = this and 0b111111
 fun Move.to(): Square = this and 0b111111000000 shr 6

@@ -29,6 +29,11 @@ class Squares {
         val A1: Square = fromRankAndFile(Ranks.RANK_1, Files.FILE_A)
         val A8: Square = fromRankAndFile(Ranks.RANK_8, Files.FILE_A)
         val A2: Square = fromRankAndFile(Ranks.RANK_2, Files.FILE_A)
+        val C1: Square = fromRankAndFile(Ranks.RANK_1, Files.FILE_C)
+        val C8: Square = fromRankAndFile(Ranks.RANK_8, Files.FILE_C)
+        val E1: Square = fromRankAndFile(Ranks.RANK_1, Files.FILE_E)
+        val E8: Square = fromRankAndFile(Ranks.RANK_8, Files.FILE_E)
+        val G1: Square = fromRankAndFile(Ranks.RANK_1, Files.FILE_G)
         val G8: Square = fromRankAndFile(Ranks.RANK_8, Files.FILE_G)
         val H8: Square = fromRankAndFile(Ranks.RANK_8, Files.FILE_H)
 

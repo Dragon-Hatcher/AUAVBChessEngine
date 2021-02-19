@@ -26,7 +26,136 @@ class Position {
 
     var turn: Color = Colors.WHITE
 
+    fun legalMoves(): List<Move> {
+        return pseudoLegalMoves().filter {
+            val c = this.copy()
+            c.applyMove(it)
+            !c.inCheck()
+        }
+    }
+
     fun pseudoLegalMoves(): List<Move> {
+
+        fun pawnMoves(moves: MutableList<Move>, color: Color, pawns: BitBoard, them: BitBoard, all: BitBoard) {
+            val empty = all.inv()
+
+            if(color == Colors.WHITE) {
+
+                val nonFinalRank = pawns and BitBoards.rank7.inv()
+                val finalRank = pawns and BitBoards.rank7
+
+                val forward1 =     (nonFinalRank                             shl 8) and empty
+                val forward2 =     ((forward1 and BitBoards.rank3)           shl 8) and empty
+                val captureRight = ((nonFinalRank and BitBoards.fileH.inv()) shl 9) and them
+                val captureLeft =  ((nonFinalRank and BitBoards.fileA.inv()) shl 7) and them
+
+                forward1.toMoveListFromOffset(moves, 8)
+                forward2.toMoveListFromOffset(moves, 16)
+                captureRight.toMoveListFromOffset(moves, 9)
+                captureLeft.toMoveListFromOffset(moves, 7)
+
+                val forward1Promote =     (finalRank                             shl 8) and empty
+                val captureRightPromote = ((finalRank and BitBoards.fileH.inv()) shl 9) and them
+                val captureLeftPromote =  ((finalRank and BitBoards.fileA.inv()) shl 7) and them
+
+                forward1Promote.toMoveListFromOffsetAndPromote(moves, 8)
+                captureRightPromote.toMoveListFromOffsetAndPromote(moves, 9)
+                captureLeftPromote.toMoveListFromOffsetAndPromote(moves, 7)
+
+                if(epB != Squares.NONE) {
+                    val b = epB.toBitboard()
+                    val right = (b and BitBoards.fileH.inv()) shr 1
+                    val left = (b and BitBoards.fileA.inv()) shl 1
+                    if(right and pawns != BitBoards.EMPTY) moves.add(createMoveEp(epB + 1, epB + 8))
+                    if(left and pawns != BitBoards.EMPTY) moves.add(createMoveEp(epB - 1, epB + 8))
+                }
+
+            } else {
+
+                val nonFinalRank = pawns and BitBoards.rank2.inv()
+                val finalRank = pawns and BitBoards.rank2
+
+                val forward1 =     (nonFinalRank                             shr 8) and empty
+                val forward2 =     ((forward1 and BitBoards.rank6)           shr 8) and empty
+                val captureRight = ((nonFinalRank and BitBoards.fileA.inv()) shr 9) and them
+                val captureLeft =  ((nonFinalRank and BitBoards.fileH.inv()) shr 7) and them
+
+                forward1.toMoveListFromOffset(moves, -8)
+                forward2.toMoveListFromOffset(moves, -16)
+                captureRight.toMoveListFromOffset(moves, -9)
+                captureLeft.toMoveListFromOffset(moves, -7)
+
+                val forward1Promote =     (finalRank                             shr 8) and empty
+                val captureRightPromote = ((finalRank and BitBoards.fileA.inv()) shr 9) and them
+                val captureLeftPromote =  ((finalRank and BitBoards.fileH.inv()) shr 7) and them
+
+                forward1Promote.toMoveListFromOffsetAndPromote(moves, -8)
+                captureRightPromote.toMoveListFromOffsetAndPromote(moves, -9)
+                captureLeftPromote.toMoveListFromOffsetAndPromote(moves, -7)
+
+                if(epW != Squares.NONE) {
+                    val b = epW.toBitboard()
+                    val right = (b and BitBoards.fileH.inv()) shr 1
+                    val left = (b and BitBoards.fileA.inv()) shl 1
+                    if(right and pawns != BitBoards.EMPTY) moves.add(createMoveEp(epW + 1, epW - 8))
+                    if(left and pawns != BitBoards.EMPTY) moves.add(createMoveEp(epW - 1, epW - 8))
+                }
+
+            }
+        }
+
+        fun kingMoves(moves: MutableList<Move>, king: BitBoard, us: BitBoard, color: Color) {
+            val square = king.getFirstSetSquare()
+            (kingMoveMasks[square] and us.inv()).toMoveList(moves, square)
+            if(color == Colors.WHITE) {
+                if (castleKW) moves.add(createMoveWCK())
+                if (castleQW) moves.add(createMoveWCQ())
+            } else {
+                if (castleKB) moves.add(createMoveBCK())
+                if (castleQB) moves.add(createMoveBCQ())
+            }
+        }
+
+        fun knightMoves(moves: MutableList<Move>, knights: BitBoard, us: BitBoard) {
+            var k = knights
+            while(k != BitBoards.EMPTY) {
+                val square = k.getFirstSetSquare()
+                k = k.unset(square)
+                val moveBB = (knightMoveMasks[square] and us.inv())
+                moveBB.toMoveList(moves, square)
+            }
+        }
+
+        fun rookMoves(moves: MutableList<Move>, rooks: BitBoard, us: BitBoard, all: BitBoard) {
+            var r = rooks
+            while(r != BitBoards.EMPTY) {
+                val square = r.getFirstSetSquare()
+                r = r.unset(square)
+                val moveBB = rookMagicAttacks[square][(((rookMoveMasks[square] and all) * rookMagics[square]) shr rookMagicsLength[square]).toInt()] and us.inv()
+                moveBB.toMoveList(moves, square)
+            }
+        }
+
+        fun bishopMoves(moves: MutableList<Move>, bishops: BitBoard, us: BitBoard, all: BitBoard) {
+            var b = bishops
+            while(b != BitBoards.EMPTY) {
+                val square = b.getFirstSetSquare()
+                b = b.unset(square)
+                val moveBB = bishopMagicAttacks[square][(((bishopMoveMasks[square] and all) * bishopMagics[square]) shr bishopMagicsLength[square]).toInt()] and us.inv()
+                moveBB.toMoveList(moves, square)
+            }
+        }
+
+        fun queenMoves(moves: MutableList<Move>, queens: BitBoard, us: BitBoard, all: BitBoard) {
+            var q = queens
+            while(q != BitBoards.EMPTY) {
+                val square = q.getFirstSetSquare()
+                q = q.unset(square)
+                val moveBB = (rookMagicAttacks[square][(((rookMoveMasks[square] and all) * rookMagics[square]) shr rookMagicsLength[square]).toInt()] and us.inv()) or
+                        (bishopMagicAttacks[square][(((bishopMoveMasks[square] and all) * bishopMagics[square]) shr bishopMagicsLength[square]).toInt()] and us.inv())
+                moveBB.toMoveList(moves, square)
+            }
+        }
 
         val white = wPawn or wKnight or wBishop or wRook or wQueen or wKing
         val black = bPawn or bKnight or bBishop or bRook or bQueen or bKing
@@ -36,14 +165,14 @@ class Position {
 
         if(turn == Colors.WHITE) {
             pawnMoves(moves, Colors.WHITE, wPawn, black, all)
-            kingMoves(moves, wKing, white)
+            kingMoves(moves, wKing, white, Colors.WHITE)
             knightMoves(moves, wKnight, white)
             bishopMoves(moves, wBishop, white, all)
             rookMoves(moves, wRook, white, all)
             queenMoves(moves, wQueen, white, all)
         } else {
             pawnMoves(moves, Colors.BLACK, bPawn, white, all)
-            kingMoves(moves, bKing, black)
+            kingMoves(moves, bKing, black, Colors.BLACK)
             knightMoves(moves, bKnight, black)
             bishopMoves(moves, bBishop, black, all)
             rookMoves(moves, bRook, black, all)
@@ -53,110 +182,114 @@ class Position {
         return moves
     }
 
-    private fun pawnMoves(moves: MutableList<Move>, color: Color, pawns: BitBoard, them: BitBoard, all: BitBoard) {
-        val empty = all.inv()
+    fun inCheck(): Boolean {
 
-        if(color == Colors.WHITE) {
+        var attackedSquares = BitBoards.EMPTY
 
-            val nonFinalRank = pawns and BitBoards.rank7.inv()
-            val finalRank = pawns and BitBoards.rank7
+        fun pawnMoves(color: Color, pawns: BitBoard) {
+            attackedSquares = if(color == Colors.WHITE) {
 
-            val forward1 =     (nonFinalRank                             shl 8) and empty
-            val forward2 =     ((forward1 and BitBoards.rank3)           shl 8) and empty
-            val captureRight = ((nonFinalRank and BitBoards.fileH.inv()) shl 9) and them
-            val captureLeft =  ((nonFinalRank and BitBoards.fileA.inv()) shl 7) and them
+                val captureRight = ((pawns and BitBoards.fileH.inv()) shl 9)
+                val captureLeft =  ((pawns and BitBoards.fileA.inv()) shl 7)
 
-//            println(empty.asciiRepresentation())
-//            println(nonFinalRank.asciiRepresentation())
+                captureRight or captureLeft or attackedSquares
 
-            forward1.toMoveListFromOffset(moves, 8)
-            forward2.toMoveListFromOffset(moves, 16)
-            captureRight.toMoveListFromOffset(moves, 9)
-            captureLeft.toMoveListFromOffset(moves, 7)
+            } else {
 
-            val forward1Promote =     (finalRank                             shl 8) and empty
-            val captureRightPromote = ((finalRank and BitBoards.fileH.inv()) shl 9) and them
-            val captureLeftPromote =  ((finalRank and BitBoards.fileA.inv()) shl 7) and them
+                val captureRight = ((pawns and BitBoards.fileA.inv()) shr 9)
+                val captureLeft =  ((pawns and BitBoards.fileH.inv()) shr 7)
 
-            forward1Promote.toMoveListFromOffsetAndPromote(moves, 8)
-            captureRightPromote.toMoveListFromOffsetAndPromote(moves, 9)
-            captureLeftPromote.toMoveListFromOffsetAndPromote(moves, 7)
+                captureRight or captureLeft or attackedSquares
 
-            //TODO ep
+            }
+        }
 
+        fun knights(knights: BitBoard) {
+            var k = knights
+            while(k != BitBoards.EMPTY) {
+                val square = k.getFirstSetSquare()
+                k = k.unset(square)
+                attackedSquares = knightMoveMasks[square] or attackedSquares
+            }
+
+        }
+
+        fun rooks(rooks: BitBoard, all: BitBoard) {
+            var r = rooks
+            while(r != BitBoards.EMPTY) {
+                val square = r.getFirstSetSquare()
+                r = r.unset(square)
+                attackedSquares = rookMagicAttacks[square][(((rookMoveMasks[square] and all) * rookMagics[square]) shr rookMagicsLength[square]).toInt()] or attackedSquares
+            }
+        }
+
+        fun bishopMoves(bishops: BitBoard, all: BitBoard) {
+            var b = bishops
+            while(b != BitBoards.EMPTY) {
+                val square = b.getFirstSetSquare()
+                b = b.unset(square)
+                attackedSquares = bishopMagicAttacks[square][(((bishopMoveMasks[square] and all) * bishopMagics[square]) shr bishopMagicsLength[square]).toInt()] or attackedSquares
+            }
+        }
+
+        fun queenMoves(queens: BitBoard, all: BitBoard) {
+            var q = queens
+            while(q != BitBoards.EMPTY) {
+                val square = q.getFirstSetSquare()
+                q = q.unset(square)
+                attackedSquares = (rookMagicAttacks[square][(((rookMoveMasks[square] and all) * rookMagics[square]) shr rookMagicsLength[square]).toInt()]) or
+                        (bishopMagicAttacks[square][(((bishopMoveMasks[square] and all) * bishopMagics[square]) shr bishopMagicsLength[square]).toInt()]) or attackedSquares
+            }
+        }
+
+        val white = wPawn or wKnight or wBishop or wRook or wQueen or wKing
+        val black = bPawn or bKnight or bBishop or bRook or bQueen or bKing
+        val all = white or black
+
+        return if(turn == Colors.WHITE) {
+            pawnMoves(Colors.WHITE, wPawn)
+            knights(wKnight)
+            rooks(wRook, all)
+            bishopMoves(wBishop, all)
+            queenMoves(wQueen, all)
+            wKing and attackedSquares != BitBoards.EMPTY
         } else {
-
-            val nonFinalRank = pawns and BitBoards.rank2.inv()
-            val finalRank = pawns and BitBoards.rank2
-
-            val forward1 =     (nonFinalRank                             shr 8) and empty
-            val forward2 =     ((forward1 and BitBoards.rank6)           shr 8) and empty
-            val captureRight = ((nonFinalRank and BitBoards.fileA.inv()) shr 9) and them
-            val captureLeft =  ((nonFinalRank and BitBoards.fileH.inv()) shr 7) and them
-
-            forward1.toMoveListFromOffset(moves, -8)
-            forward2.toMoveListFromOffset(moves, -16)
-            captureRight.toMoveListFromOffset(moves, -9)
-            captureLeft.toMoveListFromOffset(moves, -7)
-
-            val forward1Promote =     (finalRank                             shr 8) and empty
-            val captureRightPromote = ((finalRank and BitBoards.fileA.inv()) shr 9) and them
-            val captureLeftPromote =  ((finalRank and BitBoards.fileH.inv()) shr 7) and them
-
-            forward1Promote.toMoveListFromOffsetAndPromote(moves, -8)
-            captureRightPromote.toMoveListFromOffsetAndPromote(moves, -9)
-            captureLeftPromote.toMoveListFromOffsetAndPromote(moves, -7)
-
+            pawnMoves(Colors.BLACK, bPawn)
+            knights(bKnight)
+            rooks(bRook, all)
+            bishopMoves(bBishop, all)
+            queenMoves(bQueen, all)
+            bKing and attackedSquares != BitBoards.EMPTY
         }
+
     }
 
-    private fun kingMoves(moves: MutableList<Move>, king: BitBoard, us: BitBoard) {
-        val square = king.getFirstSetSquare()
-        (kingMoveMasks[square] and us.inv()).toMoveList(moves, square)
+    fun applyMove(move: Move) {
+        TODO()
     }
 
-    private fun knightMoves(moves: MutableList<Move>, knights: BitBoard, us: BitBoard) {
-        var k = knights
-        while(k != BitBoards.EMPTY) {
-            val square = k.getFirstSetSquare()
-            k = k.unset(square)
-            val moveBB = (knightMoveMasks[square] and us.inv())
-            moveBB.toMoveList(moves, square)
-        }
+    fun copy(): Position {
+        val p = Position()
+        p.wPawn    = wPawn
+        p.bPawn    = bPawn
+        p.wBishop  = wBishop
+        p.bBishop  = bBishop
+        p.wKnight  = wKnight
+        p.bKnight  = bKnight
+        p.wRook    = wRook
+        p.bRook    = bRook
+        p.wQueen   = wQueen
+        p.bQueen   = bQueen
+        p.wKing    = wKing
+        p.bKing    = bKing
+        p.castleKW = castleKW
+        p.castleKB = castleKB
+        p.castleQB = castleQB
+        p.castleQW = castleQW
+        p.epW      = epW
+        p.epB      = epB
+        return p
     }
-
-    private fun rookMoves(moves: MutableList<Move>, rooks: BitBoard, us: BitBoard, all: BitBoard) {
-        var r = rooks
-        while(r != BitBoards.EMPTY) {
-            val square = r.getFirstSetSquare()
-            r = r.unset(square)
-            val moveBB = rookMagicAttacks[square][(((rookMoveMasks[square] and all) * rookMagics[square]) shr rookMagicsLength[square]).toInt()] and us.inv()
-            moveBB.toMoveList(moves, square)
-        }
-    }
-
-    private fun bishopMoves(moves: MutableList<Move>, bishops: BitBoard, us: BitBoard, all: BitBoard) {
-        var b = bishops
-        while(b != BitBoards.EMPTY) {
-            val square = b.getFirstSetSquare()
-            b = b.unset(square)
-            println(":::${(((bishopMoveMasks[square] * bishopMagics[square]) shr bishopMagicsLength[square]).toInt())}")
-            val moveBB = bishopMagicAttacks[square][(((bishopMoveMasks[square] and all) * bishopMagics[square]) shr bishopMagicsLength[square]).toInt()] and us.inv()
-            moveBB.toMoveList(moves, square)
-        }
-    }
-
-    private fun queenMoves(moves: MutableList<Move>, queens: BitBoard, us: BitBoard, all: BitBoard) {
-        var q = queens
-        while(q != BitBoards.EMPTY) {
-            val square = q.getFirstSetSquare()
-            q = q.unset(square)
-            val moveBB = (rookMagicAttacks[square][(((rookMoveMasks[square] and all) * rookMagics[square]) shr rookMagicsLength[square]).toInt()] and us.inv()) or
-              (bishopMagicAttacks[square][(((bishopMoveMasks[square] and all) * bishopMagics[square]) shr bishopMagicsLength[square]).toInt()] and us.inv())
-            moveBB.toMoveList(moves, square)
-        }
-    }
-
 
     fun setPiece(square: Square, piece: Piece) {
         when(piece) {
@@ -286,11 +419,14 @@ class Position {
 
             position.turn = if(pop() == 'w') Colors.WHITE else Colors.BLACK
 
+            pop()
+
             var castle = pop()
             position.castleKW = false
             position.castleQW = false
             position.castleKB = false
             position.castleQB = false
+            println(castle)
             while(castle != ' ' && castle != '-') {
                 when(castle) {
                     'K' -> position.castleKW = true
