@@ -87,6 +87,8 @@ class Pieces {
 
 typealias Color = Int
 
+fun Color.other(): Color = this xor 1
+
 class Colors {
     companion object {
         val WHITE: Color = 0

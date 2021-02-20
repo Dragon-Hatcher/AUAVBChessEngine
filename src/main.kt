@@ -17,12 +17,30 @@ fun main() {
 //    println(b.asciiRepresentation())
 //    println(b)
 
-//    val position = Position.fromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+    rookMoveMasks
+    rookMagics
+    rookMagicAttacks
+    bishopMoveMasks
+    bishopMagics
+    bishopMagicAttacks
+
+    println("after")
+
+    val position = Position.fromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 //    val position = Position.fromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -")
 //    val position = Position.fromFen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ")
-    val position = Position.fromFen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
+//    val position = Position.fromFen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
+//    position.applyMove(position.legalMoves()[34].also { println(it.notation()) })
+//    position.applyMove(position.legalMoves()[5].also { println(it.notation()) })
+//    position.applyMove(position.legalMoves()[0].also { println(it.notation()) })
+//    position.applyMove(position.legalMoves()[19].also { println(it.notation()) })
 
-    println(perft(position, 4))
+//    println(position.asciiRepresentation())
+//    position.legalMoves().also { println(it.size) }.forEach { println(it.notation() + ": 1") }
+    maxDepth = 6
+    val time = System.currentTimeMillis()
+    println(perft(position, maxDepth))
+    println(System.currentTimeMillis() - time)
 
 //    println(position.asciiRepresentation())
 //    println(position.wPawn.asciiRepresentation())

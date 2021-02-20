@@ -10,18 +10,48 @@ import kotlin.math.pow
 typealias Move = Int
 
 fun createMove(from: Square, to: Square): Move = from or (to shl 6)
-fun createMoveEp(from: Square, to: Square): Move = from or (to shl 6) or (3 shl 14)
-fun createMove(from: Square, to: Square, piece: Int): Move = from or (to shl 6) or (piece shl 12) or (1 shl 14)
+fun createMoveEp(from: Square, to: Square): Move = from or (to shl 6) or MoveTypes.EP
+fun createMove(from: Square, to: Square, piece: Int): Move = from or (to shl 6) or piece or MoveTypes.PROMOTION
 
-fun createMoveWCK(): Move = createMove(Squares.E1, Squares.G1) or (2 shl 14)
-fun createMoveWCQ(): Move = createMove(Squares.E1, Squares.C1) or (2 shl 14)
-fun createMoveBCK(): Move = createMove(Squares.E8, Squares.G8) or (2 shl 14)
-fun createMoveBCQ(): Move = createMove(Squares.E8, Squares.C8) or (2 shl 14)
+fun createMoveWCK(): Move = createMove(Squares.E1, Squares.G1) or MoveTypes.CASTLE
+fun createMoveWCQ(): Move = createMove(Squares.E1, Squares.C1) or MoveTypes.CASTLE
+fun createMoveBCK(): Move = createMove(Squares.E8, Squares.G8) or MoveTypes.CASTLE
+fun createMoveBCQ(): Move = createMove(Squares.E8, Squares.C8) or MoveTypes.CASTLE
 
 fun Move.from(): Square = this and 0b111111
 fun Move.to(): Square = this and 0b111111000000 shr 6
 
-fun Move.notation(): String = this.from().algebraic() + "->" + this.to().algebraic()
+fun Move.notation(): String = this.from().algebraic() + "" + this.to().algebraic() + this.promotionLetter()
+
+fun Move.type() = this and MoveTypes.MASK
+fun Move.promotion() = this and MovePieceType.MASK
+fun Move.promotionLetter() = when {
+    this.type() != MoveTypes.PROMOTION -> ""
+    this.promotion() == MovePieceType.BISHOP -> "b"
+    this.promotion() == MovePieceType.KNIGHT -> "n"
+    this.promotion() == MovePieceType.ROOK -> "r"
+    else -> "q"
+}
+
+class MoveTypes {
+    companion object {
+        const val NORMAL    = 0b00_00_000000_000000
+        const val PROMOTION = 0b01_00_000000_000000
+        const val CASTLE    = 0b10_00_000000_000000
+        const val EP        = 0b11_00_000000_000000
+        const val MASK      = 0b11_00_000000_000000
+    }
+}
+
+class MovePieceType {
+    companion object {
+        const val BISHOP    = 0b00_00_000000_000000
+        const val KNIGHT    = 0b00_01_000000_000000
+        const val ROOK      = 0b00_10_000000_000000
+        const val QUEEN     = 0b00_11_000000_000000
+        const val MASK      = 0b00_11_000000_000000
+    }
+}
 
 val kingMoveMasks = Squares.all.map { square ->
     val f = square.file()

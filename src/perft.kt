@@ -1,16 +1,21 @@
 import board.Position
+import board.notation
 
+var maxDepth = 0
 fun perft(position: Position, depth: Int): Int =
     when {
         position.inCheckOrStalemate() -> 0
         depth == 1 -> position.legalMoves().size
         else -> {
             val moves = position.legalMoves()
-            moves.map {
+            val ps = moves.map {
                 val c = position.copy()
                 c.applyMove(it)
-                perft(c, depth - 1)
-            }.sum()
+                val p = perft(c, depth - 1)
+                if(depth == maxDepth) println("${it.notation()}: $p")
+                p
+            }
+            ps.sum()
         }
     }
 

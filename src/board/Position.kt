@@ -26,15 +26,19 @@ class Position {
 
     var turn: Color = Colors.WHITE
 
+    private var legalMoves: List<Move>? = null
     fun legalMoves(): List<Move> {
-        return pseudoLegalMoves().filter {
-            val c = this.copy()
-            c.applyMove(it)
-            !c.inCheck()
+        if(legalMoves == null) {
+            legalMoves = pseudoLegalMoves().filter {
+                val c = this.copy()
+                c.applyMove(it)
+                !c.otherKingInCheck()
+            }
         }
+        return legalMoves!!
     }
 
-    fun pseudoLegalMoves(): List<Move> {
+    private fun pseudoLegalMoves(): List<Move> {
 
         fun pawnMoves(moves: MutableList<Move>, color: Color, pawns: BitBoard, them: BitBoard, all: BitBoard) {
             val empty = all.inv()
@@ -64,10 +68,10 @@ class Position {
 
                 if(epB != Squares.NONE) {
                     val b = epB.toBitboard()
-                    val right = (b and BitBoards.fileH.inv()) shr 1
-                    val left = (b and BitBoards.fileA.inv()) shl 1
-                    if(right and pawns != BitBoards.EMPTY) moves.add(createMoveEp(epB + 1, epB + 8))
-                    if(left and pawns != BitBoards.EMPTY) moves.add(createMoveEp(epB - 1, epB + 8))
+                    val right = (b and BitBoards.fileA.inv()) shr 1
+                    val left = (b and BitBoards.fileH.inv()) shl 1
+                    if(right and pawns != BitBoards.EMPTY) moves.add(createMoveEp(epB - 1, epB + 8))
+                    if(left and pawns != BitBoards.EMPTY) moves.add(createMoveEp(epB + 1, epB + 8))
                 }
 
             } else {
@@ -76,9 +80,13 @@ class Position {
                 val finalRank = pawns and BitBoards.rank2
 
                 val forward1 =     (nonFinalRank                             shr 8) and empty
+//                println("f1:\n${forward1.asciiRepresentation()}")
                 val forward2 =     ((forward1 and BitBoards.rank6)           shr 8) and empty
+//                println("f2:\n${forward2.asciiRepresentation()}")
                 val captureRight = ((nonFinalRank and BitBoards.fileA.inv()) shr 9) and them
+//                println("cr:\n${captureRight.asciiRepresentation()}")
                 val captureLeft =  ((nonFinalRank and BitBoards.fileH.inv()) shr 7) and them
+//                println("cl:\n${captureLeft.asciiRepresentation()}")
 
                 forward1.toMoveListFromOffset(moves, -8)
                 forward2.toMoveListFromOffset(moves, -16)
@@ -95,24 +103,24 @@ class Position {
 
                 if(epW != Squares.NONE) {
                     val b = epW.toBitboard()
-                    val right = (b and BitBoards.fileH.inv()) shr 1
-                    val left = (b and BitBoards.fileA.inv()) shl 1
-                    if(right and pawns != BitBoards.EMPTY) moves.add(createMoveEp(epW + 1, epW - 8))
-                    if(left and pawns != BitBoards.EMPTY) moves.add(createMoveEp(epW - 1, epW - 8))
+                    val right = (b and BitBoards.fileA.inv()) shr 1
+                    val left = (b and BitBoards.fileH.inv()) shl 1
+                    if(right and pawns != BitBoards.EMPTY) moves.add(createMoveEp(epW - 1, epW - 8))
+                    if(left and pawns != BitBoards.EMPTY) moves.add(createMoveEp(epW + 1, epW - 8))
                 }
 
             }
         }
 
-        fun kingMoves(moves: MutableList<Move>, king: BitBoard, us: BitBoard, color: Color) {
+        fun kingMoves(moves: MutableList<Move>, king: BitBoard, us: BitBoard, color: Color, all: BitBoard) {
             val square = king.getFirstSetSquare()
             (kingMoveMasks[square] and us.inv()).toMoveList(moves, square)
             if(color == Colors.WHITE) {
-                if (castleKW) moves.add(createMoveWCK())
-                if (castleQW) moves.add(createMoveWCQ())
+                if (castleKW && all and BitBoards.CASTLE_BLOCK_KW == BitBoards.EMPTY && otherInCheck() and BitBoards.CASTLE_CHECK_KW == BitBoards.EMPTY) moves.add(createMoveWCK())
+                if (castleQW && all and BitBoards.CASTLE_BLOCK_QW == BitBoards.EMPTY && otherInCheck() and BitBoards.CASTLE_CHECK_QW == BitBoards.EMPTY) moves.add(createMoveWCQ())
             } else {
-                if (castleKB) moves.add(createMoveBCK())
-                if (castleQB) moves.add(createMoveBCQ())
+                if (castleKB && all and BitBoards.CASTLE_BLOCK_KB == BitBoards.EMPTY && otherInCheck() and BitBoards.CASTLE_CHECK_KB == BitBoards.EMPTY) moves.add(createMoveBCK())
+                if (castleQB && all and BitBoards.CASTLE_BLOCK_QB == BitBoards.EMPTY && otherInCheck() and BitBoards.CASTLE_CHECK_QB == BitBoards.EMPTY) moves.add(createMoveBCQ())
             }
         }
 
@@ -165,14 +173,14 @@ class Position {
 
         if(turn == Colors.WHITE) {
             pawnMoves(moves, Colors.WHITE, wPawn, black, all)
-            kingMoves(moves, wKing, white, Colors.WHITE)
+            kingMoves(moves, wKing, white, Colors.WHITE, all)
             knightMoves(moves, wKnight, white)
             bishopMoves(moves, wBishop, white, all)
             rookMoves(moves, wRook, white, all)
             queenMoves(moves, wQueen, white, all)
         } else {
             pawnMoves(moves, Colors.BLACK, bPawn, white, all)
-            kingMoves(moves, bKing, black, Colors.BLACK)
+            kingMoves(moves, bKing, black, Colors.BLACK, all)
             knightMoves(moves, bKnight, black)
             bishopMoves(moves, bBishop, black, all)
             rookMoves(moves, bRook, black, all)
@@ -182,7 +190,10 @@ class Position {
         return moves
     }
 
-    fun inCheck(): Boolean {
+    private var inCheck: BitBoard? = null
+    fun inCheck(): BitBoard {
+
+        if(inCheck != null) return inCheck!!
 
         var attackedSquares = BitBoards.EMPTY
 
@@ -246,13 +257,12 @@ class Position {
         val black = bPawn or bKnight or bBishop or bRook or bQueen or bKing
         val all = white or black
 
-        return if(turn == Colors.WHITE) {
+        if(turn == Colors.WHITE) {
             pawnMoves(Colors.WHITE, wPawn)
             knights(wKnight)
             rooks(wRook, all)
             bishopMoves(wBishop, all)
             queenMoves(wQueen, all)
-            wKing and attackedSquares != BitBoards.EMPTY
         } else {
             pawnMoves(Colors.BLACK, bPawn)
             knights(bKnight)
@@ -262,10 +272,253 @@ class Position {
             bKing and attackedSquares != BitBoards.EMPTY
         }
 
+        inCheck = attackedSquares
+        return inCheck!!
+    }
+    fun kingInCheck(): Boolean = (if(turn == Colors.WHITE) wKing else bKing) and inCheck() != BitBoards.EMPTY
+    fun otherKingInCheck(): Boolean = (if(turn == Colors.WHITE) bKing else wKing) and inCheck() != BitBoards.EMPTY
+
+    private var otherInCheck: BitBoard? = null
+    fun otherInCheck(): BitBoard {
+
+        if(otherInCheck != null) return otherInCheck!!
+
+        var attackedSquares = BitBoards.EMPTY
+
+        fun pawnMoves(color: Color, pawns: BitBoard) {
+            attackedSquares = if(color == Colors.WHITE) {
+
+                val captureRight = ((pawns and BitBoards.fileH.inv()) shl 9)
+                val captureLeft =  ((pawns and BitBoards.fileA.inv()) shl 7)
+
+                captureRight or captureLeft or attackedSquares
+
+            } else {
+
+                val captureRight = ((pawns and BitBoards.fileA.inv()) shr 9)
+                val captureLeft =  ((pawns and BitBoards.fileH.inv()) shr 7)
+
+                captureRight or captureLeft or attackedSquares
+
+            }
+        }
+
+        fun knights(knights: BitBoard) {
+            var k = knights
+            while(k != BitBoards.EMPTY) {
+                val square = k.getFirstSetSquare()
+                k = k.unset(square)
+                attackedSquares = knightMoveMasks[square] or attackedSquares
+            }
+
+        }
+
+        fun rooks(rooks: BitBoard, all: BitBoard) {
+            var r = rooks
+            while(r != BitBoards.EMPTY) {
+                val square = r.getFirstSetSquare()
+                r = r.unset(square)
+                attackedSquares = rookMagicAttacks[square][(((rookMoveMasks[square] and all) * rookMagics[square]) shr rookMagicsLength[square]).toInt()] or attackedSquares
+            }
+        }
+
+        fun bishopMoves(bishops: BitBoard, all: BitBoard) {
+            var b = bishops
+            while(b != BitBoards.EMPTY) {
+                val square = b.getFirstSetSquare()
+                b = b.unset(square)
+                attackedSquares = bishopMagicAttacks[square][(((bishopMoveMasks[square] and all) * bishopMagics[square]) shr bishopMagicsLength[square]).toInt()] or attackedSquares
+            }
+        }
+
+        fun queenMoves(queens: BitBoard, all: BitBoard) {
+            var q = queens
+            while(q != BitBoards.EMPTY) {
+                val square = q.getFirstSetSquare()
+                q = q.unset(square)
+                attackedSquares = (rookMagicAttacks[square][(((rookMoveMasks[square] and all) * rookMagics[square]) shr rookMagicsLength[square]).toInt()]) or
+                        (bishopMagicAttacks[square][(((bishopMoveMasks[square] and all) * bishopMagics[square]) shr bishopMagicsLength[square]).toInt()]) or attackedSquares
+            }
+        }
+
+        val white = wPawn or wKnight or wBishop or wRook or wQueen or wKing
+        val black = bPawn or bKnight or bBishop or bRook or bQueen or bKing
+        val all = white or black
+
+        if(turn != Colors.WHITE) {
+            pawnMoves(Colors.WHITE, wPawn)
+            knights(wKnight)
+            rooks(wRook, all)
+            bishopMoves(wBishop, all)
+            queenMoves(wQueen, all)
+        } else {
+            pawnMoves(Colors.BLACK, bPawn)
+            knights(bKnight)
+            rooks(bRook, all)
+            bishopMoves(bBishop, all)
+            queenMoves(bQueen, all)
+            bKing and attackedSquares != BitBoards.EMPTY
+        }
+
+        otherInCheck = attackedSquares
+        return otherInCheck!!
     }
 
     fun applyMove(move: Move) {
-        TODO()
+        inCheck = null
+        otherInCheck = null
+        legalMoves = null
+
+        val from = move.from().toBitboard()
+        val to = move.to().toBitboard()
+        val toInv = to.inv()
+
+        epW = Squares.NONE
+        epB = Squares.NONE
+
+        when(move.type()) {
+            MoveTypes.PROMOTION -> {
+                if(turn == Colors.WHITE) {
+                    if(to == BitBoards.H8) this.castleKB = false
+                    if(to == BitBoards.A8) this.castleQB = false
+                    wPawn = wPawn xor from
+                    when(move.promotion()) {
+                        MovePieceType.BISHOP -> wBishop = wBishop or to
+                        MovePieceType.KNIGHT -> wKnight = wKnight or to
+                        MovePieceType.ROOK   -> wRook   = wRook   or to
+                        MovePieceType.QUEEN  -> wQueen  = wQueen  or to
+                    }
+                    bBishop = bBishop and toInv
+                    bKnight = bKnight and toInv
+                    bRook   = bRook   and toInv
+                    bQueen  = bQueen  and toInv
+                } else {
+                    if(to == BitBoards.H1) this.castleKW = false
+                    if(to == BitBoards.A1) this.castleQW = false
+                    bPawn = bPawn xor from
+                    when(move.promotion()) {
+                        MovePieceType.BISHOP -> bBishop = bBishop or to
+                        MovePieceType.KNIGHT -> bKnight = bKnight or to
+                        MovePieceType.ROOK   -> bRook   = bRook   or to
+                        MovePieceType.QUEEN  -> bQueen  = bQueen  or to
+                    }
+                    wBishop = wBishop and toInv
+                    wKnight = wKnight and toInv
+                    wRook   = wRook   and toInv
+                    wQueen  = wQueen  and toInv
+                }
+            }
+            MoveTypes.EP -> {
+                if(turn == Colors.WHITE) {
+                    wPawn = wPawn xor from xor to
+                    bPawn = bPawn xor (move.to().toBitboard() shr 8)
+                } else {
+                    bPawn = bPawn xor from xor to
+                    wPawn = wPawn xor (move.to().toBitboard() shl 8)
+                }
+            }
+            MoveTypes.CASTLE -> {
+                when(move.to()) {
+                    Squares.G1 -> {
+                        castleKW = false
+                        castleQW = false
+                        wKing = wKing xor BitBoards.E1 xor BitBoards.G1
+                        wRook = wRook xor BitBoards.H1 xor BitBoards.F1
+                    }
+                    Squares.C1 -> {
+                        castleKW = false
+                        castleQW = false
+                        wKing = wKing xor BitBoards.E1 xor BitBoards.C1
+                        wRook = wRook xor BitBoards.A1 xor BitBoards.D1
+                    }
+                    Squares.G8 -> {
+                        castleKB = false
+                        castleQB = false
+                        bKing = bKing xor BitBoards.E8 xor BitBoards.G8
+                        bRook = bRook xor BitBoards.H8 xor BitBoards.F8
+                    }
+                    Squares.C8 -> {
+                        castleKB = false
+                        castleQB = false
+                        bKing = bKing xor BitBoards.E8 xor BitBoards.C8
+                        bRook = bRook xor BitBoards.A8 xor BitBoards.D8
+                    }
+                }
+            }
+            MoveTypes.NORMAL -> {
+                //TODO optimize this
+                if(turn == Colors.WHITE) {
+                    if(to == BitBoards.H8) this.castleKB = false
+                    if(to == BitBoards.A8) this.castleQB = false
+                    bPawn   = bPawn   and toInv
+                    bBishop = bBishop and toInv
+                    bKnight = bKnight and toInv
+                    bRook   = bRook   and toInv
+                    bQueen  = bQueen  and toInv
+                    when {
+                        wPawn and from != BitBoards.EMPTY -> {
+                            if(move.to() - move.from() == 16) epW = move.to()
+                            wPawn = wPawn xor from xor to
+                        }
+                        wBishop and from != BitBoards.EMPTY -> {
+                            wBishop = wBishop xor from xor to
+                        }
+                        wKnight and from != BitBoards.EMPTY -> {
+                            wKnight = wKnight xor from xor to
+                        }
+                        wRook and from != BitBoards.EMPTY -> {
+                            if(from == BitBoards.A1) castleQW = false
+                            if(from == BitBoards.H1) castleKW = false
+                            wRook = wRook xor from xor to
+                        }
+                        wQueen and from != BitBoards.EMPTY -> {
+                            wQueen = wQueen xor from xor to
+                        }
+                        wKing and from != BitBoards.EMPTY -> {
+                            castleKW = false
+                            castleQW = false
+                            wKing = wKing xor from xor to
+                        }
+                    }
+                } else {
+                    if(to == BitBoards.H1) this.castleKW = false
+                    if(to == BitBoards.A1) this.castleQW = false
+                    wPawn   = wPawn   and toInv
+                    wBishop = wBishop and toInv
+                    wKnight = wKnight and toInv
+                    wRook   = wRook   and toInv
+                    wQueen  = wQueen  and toInv
+                    when {
+                        bPawn and from != BitBoards.EMPTY -> {
+                            if(move.to() - move.from() == -16) epB = move.to()
+                            bPawn = bPawn xor from xor to
+                        }
+                        bBishop and from != BitBoards.EMPTY -> {
+                            bBishop = bBishop xor from xor to
+                        }
+                        bKnight and from != BitBoards.EMPTY -> {
+                            bKnight = bKnight xor from xor to
+                        }
+                        bRook and from != BitBoards.EMPTY -> {
+                            if(from == BitBoards.A8) castleQB = false
+                            if(from == BitBoards.H8) castleKB = false
+                            bRook = bRook xor from xor to
+                        }
+                        bQueen and from != BitBoards.EMPTY -> {
+                            bQueen = bQueen xor from xor to
+                        }
+                        bKing and from != BitBoards.EMPTY -> {
+                            castleKB = false
+                            castleQB = false
+                            bKing = bKing xor from xor to
+                        }
+                    }
+
+                }
+            }
+        }
+
+        turn = turn.other()
     }
 
     fun copy(): Position {
@@ -288,6 +541,7 @@ class Position {
         p.castleQW = castleQW
         p.epW      = epW
         p.epB      = epB
+        p.turn     = turn
         return p
     }
 
@@ -350,8 +604,8 @@ class Position {
     }
 
     fun inCheckOrStalemate(): Boolean = legalMoves().isEmpty()
-    fun inCheckmate(): Boolean = inCheck() && legalMoves().isEmpty() //TODO
-    fun inStalemate(): Boolean = !inCheck() && legalMoves().isEmpty() //TODO
+    fun inCheckmate(): Boolean = kingInCheck() && legalMoves().isEmpty() //TODO improve
+    fun inStalemate(): Boolean = !kingInCheck() && legalMoves().isEmpty() //TODO improve
 
     companion object {
         /**
@@ -430,7 +684,6 @@ class Position {
             position.castleQW = false
             position.castleKB = false
             position.castleQB = false
-            println(castle)
             while(castle != ' ' && castle != '-') {
                 when(castle) {
                     'K' -> position.castleKW = true

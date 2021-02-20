@@ -44,10 +44,10 @@ fun BitBoard.toMoveListFromOffsetAndPromote(moves: MutableList<Move>, offset: In
     while(b != BitBoards.EMPTY) {
         val s = b.getFirstSetSquare()
         b = b.unset(s)
-        moves.add(createMove(s - offset, s, 0))
-        moves.add(createMove(s - offset, s, 1))
-        moves.add(createMove(s - offset, s, 2))
-        moves.add(createMove(s - offset, s, 3))
+        moves.add(createMove(s - offset, s, MovePieceType.BISHOP))
+        moves.add(createMove(s - offset, s, MovePieceType.KNIGHT))
+        moves.add(createMove(s - offset, s, MovePieceType.ROOK))
+        moves.add(createMove(s - offset, s, MovePieceType.QUEEN))
     }
 }
 
@@ -94,16 +94,32 @@ class BitBoards {
         val FULL: BitBoard = EMPTY.inv()
 
         val A1: BitBoard = 1u
+        val B1: BitBoard = A1 shl 1
+        val C1: BitBoard = B1 shl 1
+        val D1: BitBoard = C1 shl 1
+        val E1: BitBoard = D1 shl 1
+        val F1: BitBoard = E1 shl 1
+        val G1: BitBoard = F1 shl 1
+        val H1: BitBoard = G1 shl 1
+
+        val A8: BitBoard = A1 shl 56
+        val B8: BitBoard = A8 shl 1
+        val C8: BitBoard = B8 shl 1
+        val D8: BitBoard = C8 shl 1
+        val E8: BitBoard = D8 shl 1
+        val F8: BitBoard = E8 shl 1
+        val G8: BitBoard = F8 shl 1
+        val H8: BitBoard = G8 shl 1
 
         //files
         val rank1: BitBoard = (255u shl (8 * 0)).toULong()
-        val rank2: BitBoard = (255u shl (8 * 1)).toULong()
-        val rank3: BitBoard = (255u shl (8 * 2)).toULong()
-        val rank4: BitBoard = (255u shl (8 * 3)).toULong()
-        val rank5: BitBoard = (255u shl (8 * 4)).toULong()
-        val rank6: BitBoard = (255u shl (8 * 5)).toULong()
-        val rank7: BitBoard = (255u shl (8 * 6)).toULong()
-        val rank8: BitBoard = (255u shl (8 * 7)).toULong()
+        val rank2: BitBoard = rank1 shl 8
+        val rank3: BitBoard = rank2 shl 8
+        val rank4: BitBoard = rank3 shl 8
+        val rank5: BitBoard = rank4 shl 8
+        val rank6: BitBoard = rank5 shl 8
+        val rank7: BitBoard = rank6 shl 8
+        val rank8: BitBoard = rank7 shl 8
         val ranks = listOf(rank1, rank2, rank3, rank4, rank5, rank6, rank7, rank8)
 
         //rows
@@ -116,6 +132,17 @@ class BitBoards {
         val fileG: BitBoard = fileA shl 6
         val fileH: BitBoard = fileA shl 7
         val files = listOf(fileA, fileB, fileC, fileD, fileE, fileF, fileG, fileH)
+
+        //area to check for castle checks
+        val CASTLE_CHECK_QW = C1 or D1 or E1
+        val CASTLE_CHECK_KW = E1 or F1 or G1
+        val CASTLE_CHECK_QB = C8 or D8 or E8
+        val CASTLE_CHECK_KB = E8 or F8 or G8
+
+        val CASTLE_BLOCK_QW = B1 or C1 or D1
+        val CASTLE_BLOCK_KW = F1 or G1
+        val CASTLE_BLOCK_QB = B8 or C8 or D8
+        val CASTLE_BLOCK_KB = F8 or G8
 
     }
 }
